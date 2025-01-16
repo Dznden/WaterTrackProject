@@ -2,9 +2,12 @@
 Details: Test idea for water consumption tracker (2nd idea version)
 Created By: Jayden Xinchen Du
 Created Date: 14/1/2025
-Last updated: 15/1/2025
-Version = '1.2'
+Last updated: 16/1/2025
+Version = '1.3'
 '''
+import datetime as dt
+import time as tm # may use later
+import re
 '''
 from time import sleep
 from datetime import datetime
@@ -92,7 +95,65 @@ def cust_bottle(current_unit):
     bottle_size = float(input(f"Input your bottle volume in {current_unit}: ")) # need to validate response
     return [f"bottle {current_unit}", bottle_size] # need to see if work
 
+def total_wake_time():
+    """
+    Purpose: Calculate total wake time to spread out reminders throughout day
+    Parameters: None
+    Returns: None
+    """
+    print("==================================\n")
+    print("Lets set a reminder scheduler\n")
+    wakeup = input("Enter the time that you wake up (24 hour time): ")
+    wakeup = clock_validator(wakeup)
+    bedtime = input("Enter your sleep time (24 hour time): ") # need to validate input 
+    bedtime = clock_validator(bedtime)
+    print("==================================")
 
+    wakeup = wakeup.split(':')
+    print(wakeup)
+    time_wakeup = dt.timedelta(hours = int(wakeup[0]), minutes = int(wakeup[1]))
+    print(time_wakeup)
+    bedtime=bedtime.split(':')
+    time_bedtime = dt.timedelta(hours = int(bedtime[0]), minutes = int(bedtime[1]))
+    print(time_bedtime)
+    total_awake = time_bedtime - time_wakeup
+
+    if total_awake.total_seconds()<0: # adding extra day if sleep next day
+        total_awake = total_awake + dt.timedelta(days=1)
+    print(total_awake)
+    total_seconds = total_awake.total_seconds()
+    minutes = (total_seconds//60)
+    hours = total_seconds//(3600)
+    min_remainder=minutes%60
+    print(f'Your total wake time is: {int(hours)} h {int(min_remainder)} m')
+
+def clock_validator(time):
+    """
+    Purpose: validates 24 hour time input HH:MM
+    Parameters: time (str)
+    Returns: None
+    """
+    print() # test
+    valid = False
+    while valid ==False:
+        if len(time)<6 and (time[2]==':' or (time[1] and len(time)==4)):
+            valid =True
+        else:
+            print("Please ensure that the time is in HH:MM format")
+            time = input("Re-enter your time: ")
+        time_list = time.split(':')
+        try: 
+            hours = time_list[0]
+            minutes = time_list[1]
+            if len(re.findall("-", time))>0 or int(hours)>24 or int(minutes)>60: #ensure no negative symbols at all and correct numbers
+                print("The time is in 24 hour format!")
+                time = input("Re-enter your time: ")
+                valid = False
+        except ValueError:
+            print("Please ensure that the time is in HH:MM format")
+            time = input("Re-enter your time: ")
+            valid = False
+    return time
 def unit_changer_menu(current_unit):
     """
     Purpose: Show menu of all unit changing options
@@ -165,8 +226,9 @@ def menu():
         elif return_menu =="N":
             show_menu = False
         # need to validate (Y/N) option input
+    total_wake_time()
     print("EXITED MENU SCREEN")
-        
+#clock_validator("2:70")    
 menu()
 
 # need to do something about daily goal info
