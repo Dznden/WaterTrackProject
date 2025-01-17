@@ -2,12 +2,25 @@
 Details: Test idea for water consumption tracker (2nd idea version)
 Created By: Jayden Xinchen Du
 Created Date: 14/1/2025
-Last updated: 16/1/2025
-Version = '1.3'
+Last updated: 17/1/2025
+Version = '1.4'
 '''
 import datetime as dt
-import time as tm # may use later
+import time as tm 
 import re
+import schedule # external library
+'''
+TO DO LIST:
+1. get rid of all symbols for clock 24 hour validate ->dictionary (rn only - but need to rid all symbols)
+
+2. Add validator for number of reminders a day
+
+3. Maybe add calendar module (Not sure yet)
+'''
+
+
+
+# need function to edit email message
 '''
 from time import sleep
 from datetime import datetime
@@ -18,6 +31,11 @@ email_password = 'zvxw sttx qxzz nujs'
 email_receiver = '...' # user must input
 
 def send_email(subject, body):
+    """
+    Purpose: Send email to user
+    Parameters: current_unit
+    Returns: daily_goal (str)
+    """
     current_time = datetime.now()
 
     # Format the timestamp as a string
@@ -31,6 +49,36 @@ def send_email(subject, body):
     em['Subject'] = subject
     em.set_content(body)
 '''
+def scheduler(time_bedtime, total_awake):
+    """
+    Purpose: Allows user to set schedule for reminder
+    Parameters: time_bedtime, total_awake
+    Returns: None
+    """
+    reminder_limit = time_bedtime - dt.timedelta(hours = 1) # Ensure that there are no reminders after 1 hour before bedtime (unhealthy to drink at night)
+    print(f'TEST: {reminder_limit}')
+    reminder_active = total_awake.total_seconds()
+    num_reminder = input("How many times would you like to be reminded to complete your daily goal? ") # NEED VALIDATOR
+    reminder_elapse = reminder_active/int(num_reminder) # reminder elapse time
+
+    time_fmt = str(reminder_limit).split(":") # break apart into HH and MM components for limit
+    hours = int(time_fmt[0])
+    minutes = int(time_fmt[1])
+    print(f'REMINDER ELAPSED: {reminder_elapse}')
+    print(f'TEST REMINDER_LIMIT {time_fmt[0], time_fmt[1]}')
+    schedule.every(reminder_elapse).seconds.until(dt.time(hours, minutes)).do(test_function) # need to later insert email function
+
+
+def test_function():
+    """
+    Purpose: Tests if scheduler is working as intended (Temporary function)
+    Parameters: None
+    Returns: None
+    """
+    print("DONE")
+
+
+
 def user_goal(current_unit):
     """
     Purpose: Allows user to choose their own water consumption goal
@@ -126,6 +174,26 @@ def total_wake_time():
     hours = total_seconds//(3600)
     min_remainder=minutes%60
     print(f'Your total wake time is: {int(hours)} h {int(min_remainder)} m')
+    print("TESTING SCHEDULER")
+    scheduler(time_bedtime, total_awake)
+def choice_validator(choice, num_option):
+    """
+    Purpose: validates numbered choice
+    Parameters: choice (str), num_option (int)
+    Returns: choice (str)
+    """
+    valid_choice = False
+    while valid_choice ==False:
+        try:
+            choice = int(choice)
+            if choice>0 and choice<num_option: # Ensure option chosen is a valid option number
+                return str(choice)
+            else:
+                print("Your choice is not an option, please try again!")
+                choice = input("Your number choice: ")
+        except ValueError: # If datatype is not an integer
+            print("Your choice is not an option, please try again!")
+            choice = input("Your number choice: ")
 
 def clock_validator(time):
     """
@@ -162,6 +230,7 @@ def unit_changer_menu(current_unit):
     """
 
     show_unit_menu = True
+    num_option = 4
     while show_unit_menu ==True:
         print("==================================\n")
         print(f"Your current unit is: {current_unit}") # maybe change to if statement to fix bottle unit to be more user friendly
@@ -172,6 +241,7 @@ def unit_changer_menu(current_unit):
         print("4. Exit unit menu\n") 
         print("==================================")
         unit_option = input("Your number choice: ")
+        unit_option = choice_validator(unit_option, num_option)
         if unit_option =="1":
             unit = cust_bottle(current_unit)
             show_unit_menu = False
@@ -201,6 +271,7 @@ def menu():
     # need to fix main menu (currently looks ugly)
     current_unit = "L"
     show_menu = True
+    num_option = 4
     while show_menu ==True:
         print("==================================\n")
         print("Let's get started! Choose one of the following options: \n")
@@ -211,6 +282,7 @@ def menu():
         print("==================================")
         # need to validate 1, 2, 3, 4 options
         option = input("Your number choice: ")
+        option = choice_validator(option, num_option)
         if option == "1":
             daily_goal = user_goal(current_unit)
         elif option =="2":
@@ -229,7 +301,13 @@ def menu():
     total_wake_time()
     print("EXITED MENU SCREEN")
 #clock_validator("2:70")    
+
 menu()
+
+while True: # Ensure scheduler is constantly running
+    schedule.run_pending()
+    tm.sleep(1)
+# total_wake_time()
 
 # need to do something about daily goal info
 # need validate user input
@@ -247,3 +325,4 @@ menu()
 # heat map streak
 # sensor on bottle to calculate volume poured (automation)
 # simulation of water bottle drained (holding key while drinking)
+
