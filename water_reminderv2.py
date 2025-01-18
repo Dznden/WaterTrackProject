@@ -3,7 +3,7 @@ Details: Test idea for water consumption tracker (2nd idea version)
 Created By: Jayden Xinchen Du
 Created Date: 14/1/2025
 Last updated: 18/1/2025
-Version = '1.5'
+Version = '1.6'
 '''
 import datetime as dt
 import time as tm 
@@ -18,7 +18,7 @@ TO DO LIST:
 
 3. Maybe add calendar module (Not sure yet)
 
-4. Unit needs to change bug for water logging if go back to menu
+4. need to debug why its None None for object print for equivalent unit when bottle unit choice
 '''
 
 
@@ -65,33 +65,90 @@ class Water_container():
         self.capacity = goal
         self.original_capacity = goal
         self.unit = unit
+
     def drank_water(self, vol_drank):
+        '''
+        Purpose: Provide how much capacity left until complete goal
+        '''
         self.capacity = self.capacity - vol_drank
 
-    def __str__(self):
+    def bottle_to_volume(self, volume):
+        '''
+        Purpose: Convert bottles into its respective volume
+        '''
+        volume = volume * (self.original_capacity -(self.capacity))
+        return volume
+
+    def __str__(self, volume = None, unit = None):
         '''
         Purpose: Returns string representation of how much left of daily goal
-        '''
+        '''      
+        total_consumed = self.original_capacity -(self.capacity)
         if self.capacity <0:
-            return f'You have already exceeded your daily goal by {-(self.capacity)} {self.unit}\n\nYou have drank in total {self.original_capacity -(self.capacity)} {self.unit}'
-        return f'You have {self.capacity:.3f} {self.unit} left'
-def water_logging(daily_goal, added_object =None): # currently bugged, need to ensure its same object
+            return f'You have already exceeded your daily goal by {-(self.capacity):.2f} {self.unit}\nYou have drank in total {total_consumed:.2f} {self.unit}'
+        elif self.capacity<0 and re.search('^bottle', self.unit[1][0]):
+            return f'You have already exceeded your daily goal by {-(self.capacity):.2f} {self.unit}\n\nYou have drank in total {total_consumed:.2f} {self.unit}]\nYou have drank an equivalent to {volume} {unit}'
+        elif self.capacity>0 and re.search('^bottle', self.unit[1][0]):
+            return f'You have {self.capacity:.2f} {self.unit} left\nYou have drank in total {total_consumed:.2f} {self.unit}\nYou have drank an equivalent to {volume} {unit}' # need to debug why its None None
+        else:
+            return f'You have {self.capacity:.2f} {self.unit} left\nYou have drank in total {total_consumed:.2f} {self.unit}'
+        
+        
+        
+        
+
+def water_log_validator(water_consumed, goal_unit):
+    """
+    Purpose: Validate water logging (must be float)
+    Parameters: 
+    Returns: None
+    """
+    valid = False
+    while valid == False:
+        try:
+            water_consumed = float(water_consumed)
+            return str(water_consumed)
+        except ValueError:
+            print("Your input is invalid, must be a number!")
+            water_consumed = input(f"Input the amount of water consumed in {goal_unit}: ")
+
+
+def water_logging(daily_goal, added_object =None): # NEED TO ENSURE UNITS ARE CORRECTLY DISPLAYED
     """
     Purpose: Allow user to log water consumption to meet daily goal and show progress left to reach goal
     Parameters: 
     Returns: None
     """
     # Unit needs to change bug
-    print(f'The daily goal is: {daily_goal}')
+    print(f'test daily_goal {daily_goal}')
+    volume = None
+    bottle_unit = re.search('^bottle',daily_goal[1][0])
+
+    if bottle_unit: # if first word is bottle
+        volume = daily_goal[1][1]
+        temp_unit = bottle_unit.group()
+        print(f'Your daily goal is: {daily_goal[0]} {temp_unit}s')
+        goal_unit = f'{temp_unit}s'
+    else:
+        goal_unit = daily_goal[1]
+        print(f'Your daily goal is: {daily_goal}')
     goal_val = float(daily_goal[0])
-    goal_unit = daily_goal[1]
+
+
     if added_object == None: # If first time logging in water consumption
         goal_left = Water_container(goal_val, goal_unit)
     else:
         goal_left = added_object
     add_water = input(f"Input the amount of water consumed in {goal_unit}: ") # NEED VALIDATE INPUT
-    goal_left.drank_water(float(add_water))
-    print(goal_left)
+    add_water = water_log_validator(add_water, goal_unit)
+    if volume!=None: # convert bottles into volume
+        converted_unit = re.search(r'\w+\s*$',daily_goal[1][0]) # last word (unit)
+        converted_unit = converted_unit.group()
+        goal_left.drank_water(float(add_water))
+        volume = goal_left.bottle_to_volume(volume)
+    else:
+        goal_left.drank_water(float(add_water))
+    print(goal_left, volume, converted_unit)
     return goal_left
 
 def remove_reminder():
@@ -104,7 +161,7 @@ def remove_reminder():
     if remove_reminder =='Y':
         return True
 
-def scheduler_settings(reminder, daily_goal):
+def scheduler_settings(reminder, daily_goal, current_unit):
     """
     Purpose: Settings for scheduler
     Parameters: 
@@ -129,13 +186,12 @@ def scheduler_settings(reminder, daily_goal):
             if reminder_remove ==True:
                 scheduler_run(reminder, stop_status = True) # **Need to add message about how scheduler is already removed**
         elif setting_option =="2":
-            total_wake_time(daily_goal)
+            total_wake_time(daily_goal, current_unit)
         elif setting_option =="3":
             goal_left = water_logging(daily_goal, goal_left)
         elif setting_option =="4":
-            menu(daily_goal)
+            menu(daily_goal, current_unit)
 
-        
 def scheduler_run(reminder, stop_status = False):
     """
     Purpose: Run scheduler in background
@@ -167,34 +223,35 @@ def schedule_offset(time_wakeup, reminder_elapse, reminder_active):
     Parameters: 
     Returns: None
     """
-    # NEED DEBUG schedulevalue error
+
     current_time = dt.datetime.now().strftime("%H:%M:%S")
     #print(f'Test current_time = {current_time}')
     current_time = current_time.split(':')
     #time_bedtime = dt.timedelta(hours = int(bedtime[0]), minutes = int(bedtime[1]))
     reminder_active_offset = dt.timedelta(hours = int(current_time[0]), minutes = int(current_time[1]), seconds = int(current_time[2])) - time_wakeup
-    print(f'Current time: {current_time}')
-    print(f'time_wakeup: {time_wakeup}')
+    #print(f'Current time: {current_time}')
+    #print(f'time_wakeup: {time_wakeup}')
 
     reminder_active_offset = (reminder_active_offset).total_seconds()
-    print(f'reminder active offset: {reminder_active_offset}') 
+    #print(f'reminder active offset: {reminder_active_offset}') 
 
 
     offset_time_limit = dt.datetime.now() + dt.timedelta(seconds = reminder_active - reminder_active_offset - 3600)
-    print(f'Test time offset: {offset_time_limit}',f'reminder elapse time = {reminder_elapse} s') # working
+    #print(f'Test time offset: {offset_time_limit}',f'reminder elapse time = {reminder_elapse} s') # working
+    print(f'Time between reminders: {reminder_elapse}')
 
     reminder = schedule.every(reminder_elapse).seconds.until(offset_time_limit).do(test_function) # not working, schedule.ScheduleValueError: Cannot schedule a job to run until a time in the past
 
     return reminder
 
-def scheduler(time_bedtime, total_awake, time_wakeup, daily_goal):
+def scheduler(time_bedtime, total_awake, time_wakeup, daily_goal, current_unit):
     """
     Purpose: Allows user to set schedule for reminder
     Parameters: time_bedtime, total_awake
     Returns: None
     """
     reminder_limit = time_bedtime - dt.timedelta(hours = 1) # Ensure that there are no reminders after 1 hour before bedtime (unhealthy to drink at night)
-    print(f'TEST: {reminder_limit}')
+    #print(f'TEST: {reminder_limit}')
     reminder_active = total_awake.total_seconds()
     num_reminder = input("How many times would you like to be reminded to complete your daily goal? ") # NEED VALIDATOR
     reminder_elapse = reminder_active/int(num_reminder) # reminder elapse time
@@ -202,21 +259,31 @@ def scheduler(time_bedtime, total_awake, time_wakeup, daily_goal):
     time_fmt = str(reminder_limit).split(":") # break apart into HH and MM components for limit
     hours = int(time_fmt[0])
     minutes = int(time_fmt[1])
-    #print(f'REMINDER ELAPSED: {reminder_elapse}')
+    print(f'REMINDER ELAPSED: {reminder_elapse}') # still need for email 
     #print(f'TEST REMINDER_LIMIT {time_fmt[0], time_fmt[1]}')
-    print(f'time_bedtime = {time_bedtime}', f' time_wakeup = {time_wakeup}')
+    print(f'\nTime of bedtime = {time_bedtime}\nTime of wakeup = {time_wakeup}')
     if time_bedtime<time_wakeup: # if person awake between 2 different days (but still less than 24 hours), eg. ensure 2am sleep time is not of the past
-        print("OFFSET EXECUTED...")
+        #print("OFFSET EXECUTED...")
         reminder = schedule_offset(time_wakeup, reminder_elapse, reminder_active)
     else:
-        print(f'reminder time elapse = {reminder_elapse} s')
-        reminder = schedule.every(reminder_elapse).seconds.until(dt.time(hours, minutes)).do(test_function) # need to later insert email function
+        print(f'Time between reminders = {reminder_elapse} s')
+        current_time = dt.datetime.now().strftime("%H:%M:%S")
+        current_time = current_time.split(':')
+        current_time_delta = dt.timedelta(hours = int(current_time[0]), minutes = int(current_time[1]), seconds = int(current_time[2]))
+        current_time_sec = current_time_delta.total_seconds()
+
+        if current_time_sec>reminder_limit.total_seconds():
+            print("The scheduler would've stopped 1 hour before bedtime for maximum health benefits.\nHowever as this is of the past, it will now stop at exactly bedtime")
+            reminder = schedule.every(reminder_elapse).seconds.until(time_bedtime).do(test_function)
+        else:
+            reminder = schedule.every(reminder_elapse).seconds.until(dt.time(hours, minutes)).do(test_function) # need to later insert email function
+
     #remove_reminder = input("Remove reminder (Y/N): ") # have menu that asks to get to here at the beginning of function logic
 
     # To run settings and scheduler simultaneously
     thread1 = threading.Thread(target = scheduler_run, args = (reminder,)) # start run scheduler in the background, needed to remove scheduler at any point in time
     thread1.start()
-    thread2 = threading.Thread(target = scheduler_settings, args = (reminder,daily_goal))
+    thread2 = threading.Thread(target = scheduler_settings, args = (reminder,daily_goal, current_unit))
     thread2.start()
     #reminder_status = scheduler_settings()
     '''
@@ -239,18 +306,33 @@ def test_function():
     """
     print("DONE")
 
-
-
+def email_validator(email_input):
+    """
+    Purpose: Ensure valid email
+    Parameters: 
+    Returns: 
+    """
+    pattern = r"[a-zA-Z0-9]+@[a-zA-Z]+\.(com|edu|net)"
+    if (re.search(pattern, email_input)):
+        print("Email added!")
+    else:
+        print("Invalid email, please try again!")
 def user_goal(current_unit):
     """
     Purpose: Allows user to choose their own water consumption goal
     Parameters: current_unit
-    Returns: daily_goal (str)
+    Returns: daily_goal (str) bottle
     """
+    print(f"test current_unit = {current_unit}")
+    pattern = r"bottle\b"
 
+    temp_unit = current_unit
+    if re.search(pattern, current_unit[0]): # If unit is bottle, extract the actual unit out of it for print display
+        temp_unit = re.search(r"^\w+", current_unit[0])
+        temp_unit = temp_unit.group()
     is_float = False
     while is_float == False:
-        daily_goal = input(f"Input your daily water consumption goal {current_unit}: ")
+        daily_goal = input(f"Input your daily water consumption goal ({temp_unit}): ")
         is_float = only_float(daily_goal)
     return [daily_goal, current_unit]
 
@@ -293,6 +375,27 @@ def only_float(input_to_validate):
         is_float = False
     return is_float
 
+def binary_option_validator(response):
+    """
+    Purpose: Validates Y/N response
+    Parameters: response
+    Returns: None
+    """
+    valid = False
+    try:
+        response = response.lower()
+    except Exception as e:
+        print("Your response must be Y/N!")
+        print(e)
+        response = input("Would you like to return to menu (Y/N): ").lower()
+    valid_response = ['y','n','yes', 'no']
+    while valid == False:
+        if response in valid_response:
+            valid = True
+        else:
+            print("Your response must be Y/N!")
+            response = input("Would you like to return to menu (Y/N): ").lower()
+    return response
 def cust_bottle(current_unit):
     """
     Purpose: Change units of drinking into custom bottle volume
@@ -306,7 +409,7 @@ def cust_bottle(current_unit):
     bottle_size = float(input(f"Input your bottle volume in {current_unit}: ")) # need to validate response
     return [f"bottle {current_unit}", bottle_size] # need to see if work
 
-def total_wake_time(daily_goal):
+def total_wake_time(daily_goal, current_unit):
     """
     Purpose: Calculate total wake time to spread out reminders throughout day
     Parameters: None
@@ -321,25 +424,25 @@ def total_wake_time(daily_goal):
     print("==================================")
 
     wakeup = wakeup.split(':')
-    print(wakeup)
+
     time_wakeup = dt.timedelta(hours = int(wakeup[0]), minutes = int(wakeup[1]))
-    print(time_wakeup)
+
 
     bedtime=bedtime.split(':')
     time_bedtime = dt.timedelta(hours = int(bedtime[0]), minutes = int(bedtime[1]))
-    print(time_bedtime)
+
     total_awake = time_bedtime - time_wakeup
 
     if total_awake.total_seconds()<0: # adding extra day if sleep next day
         total_awake = total_awake + dt.timedelta(days=1)
-    print(total_awake)
+
     total_seconds = total_awake.total_seconds()
     minutes = (total_seconds//60)
     hours = total_seconds//(3600)
     min_remainder=minutes%60
     print(f'Your total wake time is: {int(hours)} h {int(min_remainder)} m')
-    print("TESTING SCHEDULER")
-    scheduler(time_bedtime, total_awake,time_wakeup, daily_goal)
+    #print("TESTING SCHEDULER")
+    scheduler(time_bedtime, total_awake,time_wakeup, daily_goal, current_unit)
 
 def choice_validator(choice, num_option):
     """
@@ -366,7 +469,7 @@ def clock_validator(time):
     Parameters: time (str)
     Returns: None
     """
-    print() # test
+
     valid = False
     while valid ==False:
         if len(time)<6 and (time[2]==':' or (time[1] and len(time)==4)):
@@ -391,7 +494,7 @@ def clock_validator(time):
 def unit_changer_menu(current_unit):
     """
     Purpose: Show menu of all unit changing options
-    Parameters: None
+    Parameters: current_unit
     Returns: None
     """
     show_unit_menu = True
@@ -427,18 +530,20 @@ def unit_changer_menu(current_unit):
             show_unit_menu = False
     return unit
 
-def menu(daily_goal = None):
+def menu(daily_goal = None, current_unit = None):
     """
     Purpose: Display main menu choices
     Parameters: None
     Returns: None
     """
     # need to fix main menu (currently looks ugly)
-    current_unit = "L"
+    if current_unit ==None: # first time viewing menu has L default unit
+        current_unit = "L"
     show_menu = True
     num_option = 4
     while show_menu ==True:
         print("==================================\n")
+        print(f"Your current unit is: {current_unit}")
         print("Let's get started! Choose one of the following options: \n")
         print("1. Enter your own daily water consumption goal\n")
         print("2. I'm not sure about my goal, please calculate it for me\n")
@@ -457,15 +562,23 @@ def menu(daily_goal = None):
         elif option =="4":
             print("Program terminated")
             return None
+
         return_menu = input("Would you like to return to menu (Y/N): ")
-        if return_menu =="Y":
+        return_menu = binary_option_validator(return_menu) # validate response
+        if return_menu in ['yes','y']:
             show_menu = True
-        elif return_menu =="N":
+        elif return_menu in ['no','n']:
             show_menu = False
         # need to validate (Y/N) option input
-    total_wake_time(daily_goal)
-    print("EXITED MENU SCREEN")
-#clock_validator("2:70")    
+    #print(f'Test daily goal: {daily_goal}')
+    if daily_goal!=None:
+        total_wake_time(daily_goal, current_unit)
+    else: # Ensure user has entered a goal before scheduling reminders
+        print("\nYou must input your daily water consumption goal!\n")
+        #print(current_unit)
+        menu(daily_goal, current_unit)
+    #print("EXITED MENU SCREEN")
+
 if __name__ =="__main__":
     menu()
     
