@@ -2,8 +2,8 @@
 Details: Test idea for water consumption tracker (2nd idea version)
 Created By: Jayden Xinchen Du
 Created Date: 14/1/2025
-Last updated: 18/1/2025
-Version = '1.6'
+Last updated: 19/1/2025
+Version = '1.7'
 '''
 import datetime as dt
 import time as tm 
@@ -19,11 +19,22 @@ TO DO LIST:
 3. Maybe add calendar module (Not sure yet)
 
 4. need to debug why its None None for object print for equivalent unit when bottle unit choice
+
+5. need to finish commenting and remove all debugging prints
+
+6. need to implement email notifications
+
+7. need to reset scheduler when new day (currently just ends) IMPORTANT
+
+8. remove all test prints (DEBUGGING STUFF)
+
+9. daily water consumption validator cannot have negative numbers 
+
+10. time between reminder simplify to be more user friendly H M S
+
+11. add function to edit email message (custom message)
 '''
 
-
-
-# need function to edit email message
 '''
 from time import sleep
 from datetime import datetime
@@ -33,11 +44,11 @@ email_sender = 'xinchendu17@gmail.com' # my dummy email
 email_password = 'zvxw sttx qxzz nujs'
 email_receiver = '...' # user must input
 
-def send_email(subject, body):
+def send_email(subject, body): # remember to use email validator function!!
     """
     Purpose: Send email to user
-    Parameters: current_unit
-    Returns: daily_goal (str)
+    Parameters: 
+    Returns: 
     """
     current_time = datetime.now()
 
@@ -55,8 +66,6 @@ def send_email(subject, body):
 class Water_container():
     """
     Purpose: Allow user to log water consumption to meet daily goal and show progress left to reach goal
-    Parameters: 
-    Returns: None
     """
     def __init__(self, goal, unit):
         '''
@@ -92,15 +101,11 @@ class Water_container():
             return f'You have {self.capacity:.2f} {self.unit} left\nYou have drank in total {total_consumed:.2f} {self.unit}\nYou have drank an equivalent to {volume} {unit}' # need to debug why its None None
         else:
             return f'You have {self.capacity:.2f} {self.unit} left\nYou have drank in total {total_consumed:.2f} {self.unit}'
-        
-        
-        
-        
 
 def water_log_validator(water_consumed, goal_unit):
     """
     Purpose: Validate water logging (must be float)
-    Parameters: 
+    Parameters: water_consumed, goal_unit
     Returns: None
     """
     valid = False
@@ -116,8 +121,8 @@ def water_log_validator(water_consumed, goal_unit):
 def water_logging(daily_goal, added_object =None): # NEED TO ENSURE UNITS ARE CORRECTLY DISPLAYED
     """
     Purpose: Allow user to log water consumption to meet daily goal and show progress left to reach goal
-    Parameters: 
-    Returns: None
+    Parameters: daily_goal, added_object (optional)
+    Returns: goal_left (obj)
     """
     # Unit needs to change bug
     print(f'test daily_goal {daily_goal}')
@@ -134,11 +139,11 @@ def water_logging(daily_goal, added_object =None): # NEED TO ENSURE UNITS ARE CO
         print(f'Your daily goal is: {daily_goal}')
     goal_val = float(daily_goal[0])
 
-
     if added_object == None: # If first time logging in water consumption
         goal_left = Water_container(goal_val, goal_unit)
     else:
         goal_left = added_object
+    print("NOTE: if you added too much water, enter a negative value to reverse the water added")
     add_water = input(f"Input the amount of water consumed in {goal_unit}: ") # NEED VALIDATE INPUT
     add_water = water_log_validator(add_water, goal_unit)
     if volume!=None: # convert bottles into volume
@@ -154,17 +159,17 @@ def water_logging(daily_goal, added_object =None): # NEED TO ENSURE UNITS ARE CO
 def remove_reminder():
     """
     Purpose: Remove current reminder
-    Parameters: 
-    Returns: None
+    Parameters: None
+    Returns: True (bool)
     """
     remove_reminder = input("Confirm remove reminder (Y/N): ")
     if remove_reminder =='Y':
         return True
 
-def scheduler_settings(reminder, daily_goal, current_unit):
+def scheduler_settings(daily_goal, current_unit):
     """
     Purpose: Settings for scheduler
-    Parameters: 
+    Parameters: daily_goal, current_unit
     Returns: None
     """
 
@@ -184,7 +189,7 @@ def scheduler_settings(reminder, daily_goal, current_unit):
         if setting_option =="1":
             reminder_remove = remove_reminder()
             if reminder_remove ==True:
-                scheduler_run(reminder, stop_status = True) # **Need to add message about how scheduler is already removed**
+                scheduler_run(stop_status = True) # **Need to add message about how scheduler is already removed**
         elif setting_option =="2":
             total_wake_time(daily_goal, current_unit)
         elif setting_option =="3":
@@ -192,10 +197,10 @@ def scheduler_settings(reminder, daily_goal, current_unit):
         elif setting_option =="4":
             menu(daily_goal, current_unit)
 
-def scheduler_run(reminder, stop_status = False):
+def scheduler_run(stop_status = False):
     """
     Purpose: Run scheduler in background
-    Parameters: 
+    Parameters: stop_status (optional)
     Returns: None
     """
     ''' # Pre thread structure
@@ -207,21 +212,25 @@ def scheduler_run(reminder, stop_status = False):
             print("REMINDER SUCCESSFULLY REMOVED!")
     '''
  # Thread structure
+ 
     continue_run = True
     while continue_run==True:
         schedule.run_pending()
         tm.sleep(1)
         if stop_status == True:
-            schedule.cancel_job(reminder)
+            #schedule.cancel_job(reminder_daily)
+            #schedule.cancel_job(reminder_inday)
+            schedule.clear() # clears all jobs at once
+            #within_day_scheduler(None, None, None, True)
             print("REMINDER SUCCESSFULLY REMOVED!")
             continue_run =False
 
         
-def schedule_offset(time_wakeup, reminder_elapse, reminder_active):
+def schedule_offset(time_wakeup, reminder_elapse, reminder_active, time_bedtime):
     """
     Purpose: Offset schedule if person awake between two separate days (ensure no schedule error)
-    Parameters: 
-    Returns: None
+    Parameters: time_wakeup, reminder_elapse, reminder_active, time_bedtime
+    Returns: reminder_daily (obj)
     """
 
     current_time = dt.datetime.now().strftime("%H:%M:%S")
@@ -238,16 +247,28 @@ def schedule_offset(time_wakeup, reminder_elapse, reminder_active):
 
     offset_time_limit = dt.datetime.now() + dt.timedelta(seconds = reminder_active - reminder_active_offset - 3600)
     #print(f'Test time offset: {offset_time_limit}',f'reminder elapse time = {reminder_elapse} s') # working
-    print(f'Time between reminders: {reminder_elapse}')
+    print(f'Time between reminders: {reminder_elapse} s') # CONVERT INTO MINUTES then HOURS (SIMPLIFY NEEDED)
 
-    reminder = schedule.every(reminder_elapse).seconds.until(offset_time_limit).do(test_function) # not working, schedule.ScheduleValueError: Cannot schedule a job to run until a time in the past
+    #reminder = schedule.every(reminder_elapse).seconds.until(offset_time_limit).do(test_function) # need to change to daily
+    offset_time = offset_time_limit.time()
+    print(f'test offset_time : {offset_time}')
+    reminder_daily = schedule.every().day.at(f'{offset_time}').do(within_day_scheduler, reminder_elapse, offset_time_limit, time_bedtime)
+    #reminder_inday = within_day_scheduler(reminder_elapse, offset_time_limit, time_bedtime, reminder_daily)
 
-    return reminder
-
+    return reminder_daily
+def current_day_schedule(reminder_elapse, time_reminder_limit):
+    """
+    Purpose: Current day temporary scheduler if its already past wakeup time (most cases) eg. start scheduler immediately at 11:00 when wakeup is 10:00
+    Parameters: time_bedtime, total_awake
+    Returns: None
+    """
+    temp_reminder = schedule.every(reminder_elapse).seconds.until(time_reminder_limit).do(test_function) # reminder for first day
+    temp_scheduler_run_thread = threading.Thread(target = scheduler_run, args = (temp_reminder,)) 
+    temp_scheduler_run_thread.start()
 def scheduler(time_bedtime, total_awake, time_wakeup, daily_goal, current_unit):
     """
     Purpose: Allows user to set schedule for reminder
-    Parameters: time_bedtime, total_awake
+    Parameters: time_bedtime, total_awake, time_wakeup, daily_goal, current_unit
     Returns: None
     """
     reminder_limit = time_bedtime - dt.timedelta(hours = 1) # Ensure that there are no reminders after 1 hour before bedtime (unhealthy to drink at night)
@@ -259,32 +280,53 @@ def scheduler(time_bedtime, total_awake, time_wakeup, daily_goal, current_unit):
     time_fmt = str(reminder_limit).split(":") # break apart into HH and MM components for limit
     hours = int(time_fmt[0])
     minutes = int(time_fmt[1])
+    time_reminder_limit = dt.time(hours, minutes)
+
     print(f'REMINDER ELAPSED: {reminder_elapse}') # still need for email 
     #print(f'TEST REMINDER_LIMIT {time_fmt[0], time_fmt[1]}')
     print(f'\nTime of bedtime = {time_bedtime}\nTime of wakeup = {time_wakeup}')
     if time_bedtime<time_wakeup: # if person awake between 2 different days (but still less than 24 hours), eg. ensure 2am sleep time is not of the past
         #print("OFFSET EXECUTED...")
-        reminder = schedule_offset(time_wakeup, reminder_elapse, reminder_active)
-    else:
-        print(f'Time between reminders = {reminder_elapse} s')
+        reminder_daily= schedule_offset(time_wakeup, reminder_elapse, reminder_active)
+        #offset_info = schedule_offset(time_wakeup, reminder_elapse, reminder_active)
+        #reminder_daily = offset_info[0]
+        #reminder_inday = offset_info[1]
+    
+    else: # within same day sleep and wake up
+        print(f'Time between reminders = {reminder_elapse} s') # may simplify to become more user friendly H M S format
         current_time = dt.datetime.now().strftime("%H:%M:%S")
         current_time = current_time.split(':')
         current_time_delta = dt.timedelta(hours = int(current_time[0]), minutes = int(current_time[1]), seconds = int(current_time[2]))
         current_time_sec = current_time_delta.total_seconds()
 
-        if current_time_sec>reminder_limit.total_seconds():
-            print("The scheduler would've stopped 1 hour before bedtime for maximum health benefits.\nHowever as this is of the past, it will now stop at exactly bedtime")
-            reminder = schedule.every(reminder_elapse).seconds.until(time_bedtime).do(test_function)
+        if current_time_sec>reminder_limit.total_seconds(): # if scheduler stop is of the past eg. meant to stop at 23:00 but currently 23:30
+            reminder_daily = schedule.every().day.at(f'{reminder_limit}').do(within_day_scheduler, reminder_elapse, time_reminder_limit, time_bedtime)
+            if current_time_sec>time_wakeup.total_seconds(): # start temporary reminder (for the current day)
+                current_day_schedule(reminder_elapse, time_reminder_limit)
+                #temp_reminder = schedule.every(reminder_elapse).seconds.until(time_reminder_limit).do(test_function) # reminder for first day
+                #temp_scheduler_run_thread = threading.Thread(target = scheduler_run, args = (temp_reminder,)) 
+                #temp_scheduler_run_thread.start()
+            #reminder_inday = within_day_scheduler(reminder_elapse, time_reminder_limit, time_bedtime, reminder_daily) # extract inner nest scheduler
+            #print("The scheduler would've stopped 1 hour before bedtime for maximum health benefits.\nHowever as this is of the past, it will now stop at exactly bedtime")
+            #reminder = schedule.every(reminder_elapse).seconds.until(time_bedtime).do(test_function)
         else:
-            reminder = schedule.every(reminder_elapse).seconds.until(dt.time(hours, minutes)).do(test_function) # need to later insert email function
+            reminder_daily = schedule.every().day.at(f'{reminder_limit}').do(within_day_scheduler, reminder_elapse, time_reminder_limit) # reminder for days imposed after first day
+            if current_time_sec>time_wakeup.total_seconds(): # start temporary reminder (for the current day)
+                current_day_schedule(reminder_elapse, time_reminder_limit)
+                #temp_reminder = schedule.every(reminder_elapse).seconds.until(time_reminder_limit).do(test_function)# reminder for first day
+                #temp_scheduler_run_thread = threading.Thread(target = scheduler_run, args = (temp_reminder,)) 
+                #temp_scheduler_run_thread.start()
+            #reminder_inday = within_day_scheduler(reminder_elapse, time_reminder_limit, None, reminder_daily) # extract inner nest scheduler
+            #reminder = schedule.every(reminder_elapse).seconds.until(time_reminder_limit).do(test_function) # need to later insert email function
 
     #remove_reminder = input("Remove reminder (Y/N): ") # have menu that asks to get to here at the beginning of function logic
 
-    # To run settings and scheduler simultaneously
-    thread1 = threading.Thread(target = scheduler_run, args = (reminder,)) # start run scheduler in the background, needed to remove scheduler at any point in time
-    thread1.start()
-    thread2 = threading.Thread(target = scheduler_settings, args = (reminder,daily_goal, current_unit))
-    thread2.start()
+    # To run settings and scheduler simultaneously in background
+    #thread1 = threading.Thread(target = scheduler_run, args = (reminder,)) # start run scheduler in the background, needed to remove scheduler at any point in time
+    scheduler_run_thread = threading.Thread(target = scheduler_run, args = (reminder_daily,)) 
+    scheduler_run_thread.start()
+    scheduler_setting_thread = threading.Thread(target = scheduler_settings, args = (daily_goal, current_unit))
+    scheduler_setting_thread.start()
     #reminder_status = scheduler_settings()
     '''
     if reminder_status == 'True': # indicate manual removal of scheduler
@@ -298,18 +340,34 @@ def scheduler(time_bedtime, total_awake, time_wakeup, daily_goal, current_unit):
         #if remove_reminder =='Y':
             #schedule.cancel_job(reminder)
 '''
+def within_day_scheduler(reminder_elapse, time_reminder_limit, time_bedtime = None):
+    """
+    Purpose: Schedules reminder within the same day
+    Parameters: reminder_elapse, time_reminder_limit, time_bedtime (optional)
+    Returns: None
+    """
+    #if remove_schedule!=None:
+        #schedule.cancel_job(reminder)
+    #if extract_inday_schedule!=None: # extract reminder to be removed
+        #return extract_inday_schedule
+    if time_bedtime!=None: # Situation where scheduler stops in the past 
+        print("The scheduler would've stopped 1 hour before bedtime for maximum health benefits.\nHowever as this is of the past, it will now stop at exactly bedtime")
+        reminder = schedule.every(reminder_elapse).seconds.until(time_bedtime).do(test_function) 
+    else:
+        reminder = schedule.every(reminder_elapse).seconds.until(time_reminder_limit).do(test_function)
+
 def test_function():
     """
     Purpose: Tests if scheduler is working as intended (Temporary function)
     Parameters: None
     Returns: None
     """
-    print("DONE")
+    print('DONE')
 
-def email_validator(email_input):
+def email_validator(email_input): # Incomplete
     """
     Purpose: Ensure valid email
-    Parameters: 
+    Parameters: email_input
     Returns: 
     """
     pattern = r"[a-zA-Z0-9]+@[a-zA-Z]+\.(com|edu|net)"
@@ -317,11 +375,12 @@ def email_validator(email_input):
         print("Email added!")
     else:
         print("Invalid email, please try again!")
+
 def user_goal(current_unit):
     """
     Purpose: Allows user to choose their own water consumption goal
     Parameters: current_unit
-    Returns: daily_goal (str) bottle
+    Returns: goal_info (lst)
     """
     print(f"test current_unit = {current_unit}")
     pattern = r"bottle\b"
@@ -334,13 +393,14 @@ def user_goal(current_unit):
     while is_float == False:
         daily_goal = input(f"Input your daily water consumption goal ({temp_unit}): ")
         is_float = only_float(daily_goal)
-    return [daily_goal, current_unit]
+    goal_info = [daily_goal, current_unit]
+    return goal_info
 
 def goal_calculate(current_unit):
     """
     Purpose: Calculate recommended volume of water needed daily as per google recommendations
     Parameters: current_unit
-    Returns: daily_goal (str)
+    Returns: goal_unit (lst)
     """
 
     is_float = False
@@ -359,12 +419,13 @@ def goal_calculate(current_unit):
         current_unit = 'bottles'
 
     print(f"Your calculated daily water consumption goal is {daily_goal} {current_unit}")
-    return [str(daily_goal), current_unit]
+    goal_unit = [str(daily_goal), current_unit]
+    return goal_unit
 
 def only_float(input_to_validate):
     """
     Purpose: Ensure only float are allowed as input, validation
-    Parameters: daily_goal
+    Parameters: input_to_validate
     Returns: is_float (bool)
     """
     try:
@@ -379,7 +440,7 @@ def binary_option_validator(response):
     """
     Purpose: Validates Y/N response
     Parameters: response
-    Returns: None
+    Returns: response (str)
     """
     valid = False
     try:
@@ -396,23 +457,25 @@ def binary_option_validator(response):
             print("Your response must be Y/N!")
             response = input("Would you like to return to menu (Y/N): ").lower()
     return response
+
 def cust_bottle(current_unit):
     """
     Purpose: Change units of drinking into custom bottle volume
     Parameters: current_unit
-    Returns: None
+    Returns: bottle_info (lst)
     """
     if current_unit[0] =='bottle L':
         current_unit = 'L'
     elif current_unit[0] =='bottle mL':
         current_unit = 'mL'
     bottle_size = float(input(f"Input your bottle volume in {current_unit}: ")) # need to validate response
-    return [f"bottle {current_unit}", bottle_size] # need to see if work
+    bottle_info = [f"bottle {current_unit}", bottle_size] 
+    return bottle_info
 
 def total_wake_time(daily_goal, current_unit):
     """
     Purpose: Calculate total wake time to spread out reminders throughout day
-    Parameters: None
+    Parameters: daily_goal, current_unit
     Returns: None
     """
     print("==================================\n")
@@ -424,10 +487,7 @@ def total_wake_time(daily_goal, current_unit):
     print("==================================")
 
     wakeup = wakeup.split(':')
-
     time_wakeup = dt.timedelta(hours = int(wakeup[0]), minutes = int(wakeup[1]))
-
-
     bedtime=bedtime.split(':')
     time_bedtime = dt.timedelta(hours = int(bedtime[0]), minutes = int(bedtime[1]))
 
@@ -466,8 +526,8 @@ def choice_validator(choice, num_option):
 def clock_validator(time):
     """
     Purpose: validates 24 hour time input HH:MM
-    Parameters: time (str)
-    Returns: None
+    Parameters: time 
+    Returns: time (str)
     """
 
     valid = False
@@ -495,7 +555,7 @@ def unit_changer_menu(current_unit):
     """
     Purpose: Show menu of all unit changing options
     Parameters: current_unit
-    Returns: None
+    Returns: unit (str)
     """
     show_unit_menu = True
     num_option = 4
@@ -533,7 +593,7 @@ def unit_changer_menu(current_unit):
 def menu(daily_goal = None, current_unit = None):
     """
     Purpose: Display main menu choices
-    Parameters: None
+    Parameters: daily_goal (optional), current_unit (optional)
     Returns: None
     """
     # need to fix main menu (currently looks ugly)
