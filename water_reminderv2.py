@@ -758,4 +758,8 @@ TO DO LIST:
 18. Need to implement all those sections where I said 'Future me problem' in the comments (those serve as markers to remind myself)
 
 19. Finish implementing all validators which I would've marked in the comments
+
+20. Break down this main file into several different files for easier maintenance
+
+21. Implement Open Close Principle
 '''
